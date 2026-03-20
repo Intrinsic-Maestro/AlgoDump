@@ -444,6 +444,14 @@ footer {
   font-weight: 300; margin-top: 20px;
 }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const { createClient } = supabase
+  const supabaseClient = createClient(
+    'https://bnutfczkqiyhbrgnmcaw.supabase.co',
+    'sb_publishable_ipwwHf7_ZAKpHLAI-A4A1g_0l3353-u'
+  )
+</script>
 </head>
 <body>
 
@@ -545,10 +553,11 @@ footer {
       </div>
 
       <div id="authSignup">
-        <input class="auth-input" type="text"     placeholder="Full Name">
-        <input class="auth-input" type="email"    placeholder="Email">
-        <input class="auth-input" type="text"     placeholder="Phone Number">
-        <input class="auth-input" type="password" placeholder="Password">
+        <input class="auth-input" type="text"     id="signupName"     placeholder="Full Name">
+        <input class="auth-input" type="email"    id="signupEmail"    placeholder="Email">
+        <input class="auth-input" type="text"     id="signupPhone"    placeholder="Phone Number">
+        <input class="auth-input" type="password" id="signupPassword" placeholder="Password">
+        <div id="signupMsg" style="display:none;font-size:12px;margin-top:8px;padding:8px;border-radius:6px;"></div>
         <div class="roles">
           <button class="role-btn active" onclick="selectRole(this,'citizen','signup')">Citizen</button>
           <button class="role-btn"        onclick="selectRole(this,'gov','signup')">Gov</button>
@@ -556,19 +565,20 @@ footer {
         </div>
         <div id="su-govSlot"        class="extra-slot" style="transform:translateX(20px)"></div>
         <div id="su-contractorSlot" class="extra-slot" style="transform:translateX(20px)"></div>
-        <button class="auth-btn">Create Account</button>
+        <button class="auth-btn" onclick="handleSignup()">Create Account</button>
       </div>
 
       <div id="authLogin" class="hidden">
-        <input class="auth-input" type="text"     placeholder="Email or Phone">
-        <input class="auth-input" type="password" placeholder="Password">
+        <input class="auth-input" type="email"    id="loginEmail"    placeholder="Email">
+        <input class="auth-input" type="password" id="loginPassword" placeholder="Password">
+        <div id="loginMsg" style="display:none;font-size:12px;margin-top:8px;padding:8px;border-radius:6px;"></div>
         <div class="roles">
           <button class="role-btn active" onclick="selectRole(this,'citizen','login')">Citizen</button>
           <button class="role-btn"        onclick="selectRole(this,'gov','login')">Gov</button>
           <button class="role-btn"        onclick="selectRole(this,'contractor','login')">Contractor</button>
         </div>
         <div id="li-otpSlot" class="extra-slot" style="transform:translateX(20px)"></div>
-        <button class="auth-btn">Log In</button>
+        <button class="auth-btn" onclick="handleLogin()">Log In</button>
       </div>
     </div>
   </div>
@@ -911,6 +921,87 @@ function tick() {
 }
 
 window.addEventListener('resize', () => { resize(); tick(); });
+async function handleSignup() {
+  const name     = document.getElementById('signupName').value.trim();
+  const email    = document.getElementById('signupEmail').value.trim();
+  const phone    = document.getElementById('signupPhone').value.trim();
+  const password = document.getElementById('signupPassword').value.trim();
+  const msg      = document.getElementById('signupMsg');
+  msg.style.display = 'none';
+
+  if (!name || !email || !phone || !password) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(220,38,38,0.15)';
+    msg.style.color = '#ff4444';
+    msg.textContent = '❌ Please fill all fields.';
+    return;
+  }
+
+  const { data, error } = await supabaseClient.auth.signUp({
+    email: email,
+    password: password
+  });
+
+  if (error) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(220,38,38,0.15)';
+    msg.style.color = '#ff4444';
+    msg.textContent = '❌ ' + error.message;
+    return;
+  }
+
+  await supabaseClient.from('users').insert({
+    id: data.user.id,
+    name: name,
+    phone: phone,
+    aadhaar: '',
+    role: 'citizen'
+  });
+
+  msg.style.display = 'block';
+  msg.style.background = 'rgba(74,222,128,0.15)';
+  msg.style.color = '#4ade80';
+  msg.textContent = '✅ Account created successfully!';
+}
+
+async function handleLogin() {
+  const email    = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
+  const msg      = document.getElementById('loginMsg');
+  msg.style.display = 'none';
+
+  if (!email || !password) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(220,38,38,0.15)';
+    msg.style.color = '#ff4444';
+    msg.textContent = '❌ Please fill all fields.';
+    return;
+  }
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email: email,
+    password: password
+  });
+
+  if (error) {
+    msg.style.display = 'block';
+    msg.style.background = 'rgba(220,38,38,0.15)';
+    msg.style.color = '#ff4444';
+    msg.textContent = '❌ Wrong email or password.';
+    return;
+  }
+
+  const { data: userData } = await supabaseClient
+    .from('users')
+    .select('name, role')
+    .eq('id', data.user.id)
+    .single();
+
+  msg.style.display = 'block';
+  msg.style.background = 'rgba(74,222,128,0.15)';
+  msg.style.color = '#4ade80';
+  msg.textContent = '✅ Welcome back, ' + (userData?.name || 'User') + '!';
+}
 window.addEventListener('scroll', onScroll, { passive: true });
 window.addEventListener('load',   () => {
   resize();
